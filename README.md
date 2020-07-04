@@ -1,2 +1,2 @@
-# config
-Misaka Mikoto Network config files
+# Misaka-config
+All of Misaka Network config files
