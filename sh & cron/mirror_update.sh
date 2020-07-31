@@ -1,7 +1,7 @@
 #!/bin/bash
 cp /root/update/page/offline.html /etc/nginx/html/index.html
 cp /root/update/offline.conf /etc/nginx/nginx.conf
-/usr/sbin/service nginx restart
+/usr/sbin/nginx -s reload
 rm -rf /HDD/archive/skel/
 apt-mirror
 rm -rf /HDD/archive/mirror/ports.ubuntu.com/ubuntu-ports/dists/focal*/*/cnf
@@ -19,4 +19,4 @@ ls -lR > ls-lR
 gzip ls-lR
 cp /root/update/page/online.html /etc/nginx/html/index.html
 cp /root/update/online.conf /etc/nginx/nginx.conf
-/usr/sbin/service nginx restart
+/usr/sbin/nginx -s reload
