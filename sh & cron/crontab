@@ -20,5 +20,14 @@
 # For more information see the manual pages of crontab(5) and cron(8)
 # 
 # m h  dom mon dow   command
-00 10    * * *  /root/update/mirror_update.sh > /root/update/cron.log
-00 22    * * *  /root/update/mirror_update.sh > /root/update/cron.log
+00 03    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
+00 10    * * *  /root/rsync/script/debian.sh > /root/rsync/log/debian.log
+00 10    * * *  /root/rsync/script/debian-ports.sh > /root/rsync/log/debian-ports.log
+00 10    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
+00 10    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
+00 15    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
+00 22    * * *  /root/rsync/script/debian.sh > /root/rsync/log/debian.log
+00 22    * * *  /root/rsync/script/debian-ports.sh > /root/rsync/log/debian-ports.log
+00 22    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
+00 22    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
+
