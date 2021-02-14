@@ -9,7 +9,7 @@ warn() {
   echo "$1"
 }
 
-RSYNCSOURCE=rsync://ftp.kr.debian.org/debian-ports/
+RSYNCSOURCE=rsync://ftp.kaist.ac.kr/debian-ports/
 BASEDIR=/HDD/debian-ports
 
 if [ ! -d ${BASEDIR} ]; then
@@ -29,5 +29,5 @@ rsync --verbose --recursive --times --links --safe-links --hard-links \
   --stats --delete --delete-after \
   ${RSYNCSOURCE} ${BASEDIR} || warn "Second stage of sync failed. (Debian-Ports)"
 
-rm ${BASEDIR}/Archive-Update-in-Progress-mirror.misakamikoto.network
-date -u > ${BASEDIR}/project/trace/mirror.misakamikoto.network
+rm ${BASEDIR}/Archive-Update-*
+printf "$(date -u)\nMaintainer: Kwabang <kwabang2827@gmail.com>\nUpstream-mirror: ftp.kaist.ac.kr\n" > ${BASEDIR}/project/trace/mirror.misakamikoto.network

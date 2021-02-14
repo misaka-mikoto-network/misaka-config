@@ -29,5 +29,5 @@ rsync --verbose --recursive --times --links --safe-links --hard-links \
   --stats --delete --delete-after \
   ${RSYNCSOURCE} ${BASEDIR} || warn "Second stage of sync failed. (Ubuntu)"
 
-rm ${BASEDIR}/Archive-Update-in-Progress-mirror.misakamikoto.network
+rm ${BASEDIR}/Archive-Update-*
 date -u > ${BASEDIR}/project/trace/mirror.misakamikoto.network

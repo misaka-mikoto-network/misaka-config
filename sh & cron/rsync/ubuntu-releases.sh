@@ -23,4 +23,4 @@ rsync --verbose --recursive --times --links --safe-links --hard-links \
   --stats --delete-after \
   ${RSYNCSOURCE} ${BASEDIR} || warn "Failed to rsync from ${RSYNCSOURCE}."
 
-rm ${BASEDIR}/Archive-Update-in-Progress-mirror.misakamikoto.network
+rm ${BASEDIR}/Archive-Update-*
