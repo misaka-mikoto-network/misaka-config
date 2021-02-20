@@ -112,6 +112,11 @@
                   <td id="debian-ports-status"></td>
                 </tr>
                 <tr>
+                  <td><a href="./debian-security">Debian-Security</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>07:00, 19:00</td>
+                  <td id="debian-security-status"></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -153,7 +158,7 @@
       var xhr = new XMLHttpRequest();
       var url = './' + name + '/Archive-Update-in-Progress-mirror.misakamikoto.network'
 
-      xhr.open('GET', url);
+      xhr.open('HEAD', url);
       xhr.onreadystatechange = function () {
         if (xhr.readyState === XMLHttpRequest.DONE) {
           switch (xhr.status) {
@@ -170,7 +175,7 @@
       }
       xhr.send();
     }
-    var list = ['ubuntu', 'ubuntu-ports', 'ubuntu-releases', 'debian', 'debian-ports']
+    var list = ['ubuntu', 'ubuntu-ports', 'ubuntu-releases', 'debian', 'debian-ports','debian-security']
     list.forEach(name => {
       check(name)
     })
