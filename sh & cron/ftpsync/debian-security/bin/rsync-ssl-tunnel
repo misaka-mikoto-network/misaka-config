@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+
+# Helper to tunnel rsync through ssl on the client side.
+# Example:
+#   $ RSYNC_SSL_METHOD=socat rsync -e ./rsync-ssl-tunnel syncproxy2.eu.debian.org::
+#   debian          Full Debian FTP Archive.
+#   debian-debug    Debug packages.
+
+# Copyright (c) 2016 Peter Palfrader
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+set -e
+set -u
+
+usage() {
+  cat <<EOF
+Usage: $0 [OPTION]... RSYNC_HOST"
+
+  -C  the capath (default: /etc/ssl/certs)
+  -m  the method (stunnel|stunnel-old|socat)
+  -p  the port (default: 1873)
+  -h  display this help and exit
+EOF
+  exit $1
+}
+
+while getopts C:hl:m:p: option; do
+  case $option in
+    C) RSYNC_SSL_CAPATH=$OPTARG ;;
+    h) usage 0 ;;
+    l) ;; # ignore option
+    m) RSYNC_SSL_METHOD=$OPTARG ;;
+    p) RSYNC_SSL_PORT=$OPTARG ;;
+    ?) usage 64 >&2 ;;
+  esac
+done
+shift $(($OPTIND - 1))
+
+if [[ "$#" = 0 ]]; then
+  echo >&2 "No arguments given."
+  usage 64 >&2
+  exit 1
+fi
+RSYNC_HOST="$1"; shift
+RSYNC_SSL_PORT=${RSYNC_SSL_PORT:-"1873"}
+RSYNC_SSL_CAPATH=${RSYNC_SSL_CAPATH:-"/etc/ssl/certs"}
+RSYNC_SSL_METHOD=${RSYNC_SSL_METHOD:-"stunnel"}
+
+method_stunnel() {
+  skip_host_check="$1"; shift
+
+  if ! [ "$skip_host_check" = 1 ]; then
+    checkhost="checkHost = ${RSYNC_HOST}"
+  fi
+
+  exec stunnel -fd 3 3<<EOF
+client = yes
+verify = 2
+CApath = ${RSYNC_SSL_CAPATH}
+
+syslog = no
+debug = 4
+output = /dev/stderr
+
+connect = ${RSYNC_HOST}:${RSYNC_SSL_PORT}
+${checkhost:-}
+EOF
+
+  echo >&2 "Failed to exec stunnel"
+  exit 1
+}
+
+method_socat() {
+  exec socat - "openssl-connect:${RSYNC_HOST}:${RSYNC_SSL_PORT},capath=${RSYNC_SSL_CAPATH},keepalive,keepidle=300"
+  echo >&2 "Failed to exec socat."
+  exit 1
+}
+
+case ${RSYNC_SSL_METHOD:-} in
+  stunnel|stunnel4)
+    method_stunnel 0
+    ;;
+  stunnel-old|stunnel4-old)
+    method_stunnel 1
+    ;;
+  socat)
+    method_socat
+    ;;
+  *)
+    echo >&2 "Unknown method $RSYNC_SSL_METHOD."
+    exit 1
+    ;;
+esac

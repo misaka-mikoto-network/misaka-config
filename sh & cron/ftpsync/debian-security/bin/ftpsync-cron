@@ -1,0 +1,525 @@
+#!/usr/bin/env bash
+
+set -euE
+
+VERSION="20180513"
+# -*- mode:sh -*-
+# vim:syn=sh
+# Little common functions
+
+# push a mirror attached to us.
+# Arguments (using an array named SIGNAL_OPTS):
+#
+# $MIRROR      - Name for the mirror, also basename for the logfile
+# $HOSTNAME    - Hostname to push to
+# $USERNAME    - Username there
+# $SSHPROTO    - Protocol version, either 1 or 2.
+# $SSHKEY      - the ssh private key file to use for this push
+# $SSHOPTS     - any other option ssh accepts, passed blindly, be careful
+# $PUSHLOCKOWN - own lockfile name to touch after stage1 in pushtype=staged
+# $PUSHTYPE    - what kind of push should be done?
+#                all    - normal, just push once with ssh backgrounded and finish
+#                staged - staged. first push stage1, then wait for $PUSHLOCKs to appear,
+#                         then push stage2
+# $PUSHARCHIVE - what archive to sync? (Multiple mirrors behind one ssh key!)
+# $PUSHCB      - do we want a callback?
+# $PUSHKIND    - whats going on? are we doing mhop push or already stage2?
+# $FROMFTPSYNC - set to true if we run from within ftpsync.
+#
+# This function assumes that the variable LOG is set to a directory where
+# logfiles can be written to.
+# Additionally $PUSHLOCKS has to be defined as a set of space delimited strings
+# (list of "lock"files) to wait for if you want pushtype=staged
+#
+# Pushes might be done in background (for type all).
+signal () {
+    ARGS="SIGNAL_OPTS[*]"
+    local ${!ARGS}
+
+    MIRROR=${MIRROR:-""}
+    HOSTNAME=${HOSTNAME:-""}
+    USERNAME=${USERNAME:-""}
+    SSHPROTO=${SSHPROTO:-""}
+    SSHKEY=${SSHKEY:-""}
+    SSHOPTS=${SSHOPTS:-""}
+    PUSHLOCKOWN=${PUSHLOCKOWN:-""}
+    PUSHTYPE=${PUSHTYPE:-"all"}
+    PUSHARCHIVE=${PUSHARCHIVE:-""}
+    PUSHCB=${PUSHCB:-""}
+    PUSHKIND=${PUSHKIND:-"all"}
+    FROMFTPSYNC=${FROMFTPSYNC:-"false"}
+
+    # And now get # back to space...
+    SSHOPTS=${SSHOPTS/\#/ }
+
+    # Defaults we always want, no matter what
+    SSH_OPTIONS="-o user=${USERNAME} -o BatchMode=yes -o ServerAliveInterval=45 -o ConnectTimeout=45 -o PasswordAuthentication=no"
+
+    # If there are userdefined ssh options, add them.
+    if [[ -n ${SSH_OPTS} ]]; then
+        SSH_OPTIONS="${SSH_OPTIONS} ${SSH_OPTS}"
+    fi
+
+    # Does this machine need a special key?
+    if [[ -n ${SSHKEY} ]]; then
+        SSH_OPTIONS="${SSH_OPTIONS} -i ${SSHKEY}"
+    fi
+
+    # Does this machine have an extra own set of ssh options?
+    if [[ -n ${SSHOPTS} ]]; then
+        SSH_OPTIONS="${SSH_OPTIONS} ${SSHOPTS}"
+    fi
+
+    # Set the protocol version
+    if [[ ${SSHPROTO} -ne 1 ]] && [[ ${SSHPROTO} -ne 2 ]] && [[ ${SSHPROTO} -ne 99 ]]; then
+        # Idiots, we only want 1 or 2. Cant decide? Lets force 2.
+        SSHPROTO=2
+    fi
+
+    if [[ -n ${SSHPROTO} ]] && [[ ${SSHPROTO} -ne 99 ]]; then
+        SSH_OPTIONS="${SSH_OPTIONS} -${SSHPROTO}"
+    fi
+
+    date -u >> "${LOGDIR}/${MIRROR}.log"
+
+    PUSHARGS=""
+    # PUSHARCHIVE empty or not, we always add the sync:archive: command to transfer.
+    # Otherwise, if nothing else is added, ssh -f would not work ("no command to execute")
+    # But ftpsync does treat "sync:archive:" as the main archive, so this works nicely.
+    PUSHARGS="${PUSHARGS} sync:archive:${PUSHARCHIVE}"
+
+    # We have a callback wish, tell downstreams
+    if [[ -n ${PUSHCB} ]]; then
+        PUSHARGS="${PUSHARGS} sync:callback"
+    fi
+    # If we are running an mhop push AND our downstream is one to receive it, tell it.
+    if [[ mhop = ${PUSHKIND} ]] && [[ mhop = ${PUSHTYPE} ]]; then
+        PUSHARGS="${PUSHARGS} sync:mhop"
+    fi
+
+    if [[ all = ${PUSHTYPE} ]]; then
+        # Default normal "fire and forget" push. We background that, we do not care about the mirrors doings
+        PUSHARGS1="sync:all"
+        signal_ssh "normal" "${MIRROR}" "${HOSTNAME}" $SSH_OPTIONS "${PUSHARGS} ${PUSHARGS1}"
+    elif [[ staged = ${PUSHTYPE} ]] || [[ mhop = ${PUSHTYPE} ]]; then
+        # Want a staged push. Fine, lets do that. Not backgrounded. We care about the mirrors doings.
+        # Only send stage1 if we havent already send it. When called with stage2, we already did.
+        if [[ stage2 != ${PUSHKIND} ]]; then
+            # Step1: Do a push to only sync stage1, do not background
+            PUSHARGS1="sync:stage1"
+            signal_ssh "first stage" "${MIRROR}" "${HOSTNAME}" $SSH_OPTIONS "${PUSHARGS} ${PUSHARGS1}"
+            touch "${PUSHLOCKOWN}"
+
+            # Step2: Wait for all the other "lock"files to appear.
+            # In case we did not have all PUSHLOCKS and still continued, note it
+            # This is a little racy, especially if the other parts decide to do this
+            # at the same time, but it wont hurt more than a mail too much, so I don't care much
+            if ! wait_for_pushlocks ${PUSHDELAY}; then
+                msg "Failed to wait for all other mirrors. Failed ones are:" >> "${LOGDIR}/${MIRROR}.log"
+                for file in ${PUSHLOCKS}; do
+                    if [[ ! -f ${file} ]]; then
+                        msg "${file}" >> "${LOGDIR}/${MIRROR}.log"
+                        log "Missing Pushlockfile ${file} after waiting for more than ${PUSHDELAY} seconds, continuing"
+                    fi
+                done
+            fi
+            rm -f "${PUSHLOCKOWN}"
+        fi
+
+        # Step3: It either timed out or we have all the "lock"files, do the rest
+        # If we are doing mhop AND are called from ftpsync - we now exit.
+        # That way we notify our uplink that we and all our clients are done with their
+        # stage1. It can then finish its own, and if all our upstreams downlinks are done,
+        # it will send us stage2.
+        # If we are not doing mhop or are not called from ftpsync, we start stage2
+        if [[ true = ${FROMFTPSYNC} ]] && [[ mhop = ${PUSHKIND} ]]; then
+            return
+        else
+            PUSHARGS2="sync:stage2"
+            signal_ssh "second stage" "${MIRROR}" "${HOSTNAME}" $SSH_OPTIONS "${PUSHARGS} ${PUSHARGS2}"
+        fi
+    else
+        # Can't decide? Then you get nothing.
+        return
+    fi
+}
+
+signal_ssh() {
+    local t=$1
+    local mirror_log="${LOGDIR}/${2}.log"
+    local hostname=$3
+    shift 3
+
+    msg "Sending ${t} trigger" >> $mirror_log
+    output=$(ssh -n $hostname "$@" 2>&1 | tee -a $mirror_log)
+    if [[ $? -eq 255 ]]; then
+        error_mailf "${t} trigger failed: $hostname" -b "$output"
+    else
+        log "${t} trigger succeeded: $hostname"
+    fi
+}
+
+wait_for_pushlocks() {
+  local tries=0
+  local found
+  local total
+  local timeout=${1}; shift
+  # We do not wait forever
+  while [[ ${tries} -lt ${timeout} ]]; do
+      total=0
+      found=0
+      for file in ${PUSHLOCKS}; do
+          total=$(( total + 1 ))
+          if [[ -f ${file} ]]; then
+              found=$(( found + 1 ))
+          fi
+      done
+      if [[ ${total} -eq ${found} ]] || [[ -f ${LOCKDIR}/all_stage1 ]]; then
+          break
+      fi
+      tries=$(( tries + 5 ))
+      sleep 5
+  done
+  # Regardless of the state of our siblings, hitting one timeout cancels all waits
+  touch "${LOCKDIR}/all_stage1"
+  if [[ ${tries} -ge ${timeout} ]]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+# callback, used by ftpsync
+callback () {
+    # Defaults we always want, no matter what
+    SSH_OPTIONS="-o BatchMode=yes -o ServerAliveInterval=45 -o ConnectTimeout=45 -o PasswordAuthentication=no"
+    ssh -n $SSH_OPTIONS -i "$3" -o"user $1" "$2" callback:${HOSTNAME}
+}
+
+# open log file
+open_log() {
+    local log=$1
+    shift
+    exec 4>&1 1>>$log
+}
+
+# assemble log message (basically echo it together with a timestamp)
+#
+# Set $PROGRAM to a string to have it added to the output.
+msg() {
+    if [[ -z "${PROGRAM}" ]]; then
+        echo "$(date +"%b %d %H:%M:%S") $(hostname -s) [$$] $@"
+    else
+        echo "$(date +"%b %d %H:%M:%S") $(hostname -s) ${PROGRAM}[$$]: $@"
+    fi
+}
+
+# log something
+log() {
+    msg "$@"
+}
+
+# log the message using log() but then also send a mail
+# to the address configured in MAILTO (if non-empty)
+error () {
+    log "$@"
+    LOG_ERROR=1
+    mailf -s "[$PROGRAM@$(hostname -s)] ERROR: $*" -b "$*" ${MAILTO}
+}
+
+# log the message using log() but then also send a mail
+# to the address configured in MAILTO (if non-empty)
+error_mailf () {
+    local m="$1"
+    shift
+    log "$m"
+    LOG_ERROR=1
+    mailf -s "[$PROGRAM@$(hostname -s)] ERROR: $m" "$@" ${MAILTO}
+}
+
+# run a hook
+# needs array variable HOOK setup with HOOKNR being a number an HOOKSCR
+# the script to run.
+hook () {
+    ARGS='HOOK[@]'
+    local "${!ARGS}"
+    if [[ -n ${HOOKSCR} ]]; then
+        log "Running hook $HOOKNR: ${HOOKSCR}"
+        set +e
+        ${HOOKSCR}
+        result=$?
+        set -e
+        if [[ ${result} -ne 0 ]] ; then
+            error "Back from hook $HOOKNR, got returncode ${result}"
+        else
+            log "Back from hook $HOOKNR, got returncode ${result}"
+        fi
+        return $result
+    else
+        return 0
+    fi
+}
+
+# Return the list of 2-stage mirrors.
+get2stage() {
+    egrep -s '^(staged|mhop)' "${MIRRORS}" | {
+        while read MTYPE MLNAME MHOSTNAME MUSER MPROTO MKEYFILE; do
+            PUSHLOCKS="${LOCKDIR}/${MLNAME}.stage1 ${PUSHLOCKS}"
+        done
+        echo "$PUSHLOCKS"
+    }
+}
+
+# Rotate logfiles
+savelog() {
+    torotate="$1"
+    count=${2:-${LOGROTATE}}
+    while [[ ${count} -gt 0 ]]; do
+        prev=$(( count - 1 ))
+        if [[ -e ${torotate}.${prev} ]]; then
+            mv "${torotate}.${prev}" "${torotate}.${count}"
+        fi
+        count=$prev
+    done
+    if [[ -e ${torotate} ]]; then
+        mv "${torotate}" "${torotate}.0"
+    fi
+}
+
+# Return rsync version
+rsync_protocol() {
+    RSYNC_VERSION="$(${RSYNC} --version)"
+    RSYNC_REGEX="(protocol[ ]+version[ ]+([0-9]+))"    
+    if [[ ${RSYNC_VERSION} =~ ${RSYNC_REGEX} ]]; then
+        echo ${BASH_REMATCH[2]}
+    fi
+    unset RSYNC_VERSION RSYNC_REGEX
+}
+
+extract_trace_field() {
+    local field="$1"
+    local file="$2"
+    local value=$(awk -F': ' "\$1==\"$field\" {print \$2; exit}" "$file" 2>/dev/null)
+    [[ $value ]] || return 1
+    echo $value
+}
+
+extract_trace_field_string() {
+    local field="$1"
+    local string="$2"
+    local value=$(awk -F': ' "\$1==\"$field\" {print \$2; exit}" <<< "$string" 2>/dev/null)
+    [[ $value ]] || return 1
+    echo $value
+}
+
+extract_trace_serial() {
+    extract_trace_field 'Archive serial' "$1"
+    return $?
+}
+
+extract_trace_serial_string() {
+    extract_trace_field_string 'Archive serial' "$1"
+    return $?
+}
+
+# Search config files in various locations
+search_config() {
+  local file
+  for i in ${CONFDIRS[@]}; do
+    file="$i/$1"
+    if [ -f "$file" ]; then
+      echo "$file"
+      return
+    fi
+  done
+}
+
+# Read config file
+read_config() {
+  local name=$(echo "$1" | sed -e 's/[^A-Za-z0-9._-]/_/g')
+  local config=$(search_config "$name")
+  if [ "$config" ]; then
+    . "$config"
+    CURRENT_CONFIG="$config"
+    return 0
+  else
+    echo "Can't read config file ${name}!" >&2
+    exit 78 # EX_CONFIG
+  fi
+}
+
+# Create lock dir
+create_lockdir() {
+  mkdir -p "$LOCKDIR"
+}
+
+# Create log dir
+create_logdir() {
+  mkdir -p "$LOGDIR"
+}
+
+join_by() {
+    local IFS="$1"
+    shift
+    echo $*
+}
+
+# Sends mail
+# mailf [-a attachment] [-b body] [-s subject] to-addr ...
+mailf() {
+    local boundary="==--$RANDOM--$RANDOM--$RANDOM--=="
+    local attachment=()
+    local body=()
+    local subject=
+
+    OPTIND=1
+    while getopts ":a:b:s:" arg; do
+        case $arg in
+            a)
+                attachment+=("$OPTARG")
+                ;;
+            b)
+                body+=("$OPTARG")
+                ;;
+            s)
+                subject="$OPTARG"
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    (
+        cat <<EOF
+Subject: ${subject}
+To: $(join_by ', ' "$@")
+Auto-Submitted: auto-generated
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary=${boundary}
+
+EOF
+        if [[ ${body[@]:-} ]]; then
+            for a in "${body[@]}"; do
+                cat <<EOF
+--${boundary}
+Content-type: text/plain
+
+EOF
+                echo "$a"
+            done
+        fi
+        if [[ ${attachment[@]:-} ]]; then
+            for a in "${attachment[@]}"; do
+                cat <<EOF
+--${boundary}
+Content-type: text/plain; name="$(basename $a)"
+
+EOF
+                cat "$a" || echo "Failed to attach $a"
+            done
+        fi
+        cat <<EOF
+--${boundary}--
+EOF
+    ) | /usr/sbin/sendmail -i -- "$@" || :
+}
+# -*- mode:sh -*-
+# vim:syn=sh
+
+BINDIR=$(dirname $(readlink -f "$0"))
+BASEDIR=${BASEDIR:-"$(readlink -f $(dirname "$0")/..)"}
+CONFDIRS=("${BASEDIR}/etc" ~/.config/ftpsync /etc/ftpsync)
+LOCKDIR="${BASEDIR}/locks"
+LOGDIR="${BASEDIR}/log"
+
+function send_mail_new_version() {
+    # Check if there is a newer version of ftpsync. If so inform the admin, but not
+    # more than once every third day.
+    if [[ -r ${TO}/project/ftpsync/LATEST.VERSION ]]; then
+        LATEST=$(< "${TO}/project/ftpsync/LATEST.VERSION")
+        if [[ ${VERSION} =~ ^[0-9]+$ ]] && [[ ${LATEST} =~ ^[0-9]+$ ]] &&
+            [[ ${LATEST} -gt ${VERSION} ]]; then
+            if [[ -n ${MAILTO} ]]; then
+                interval=$((7 * 24 * 3600))
+                difference=$interval
+                if [[ -f ${LOGDIR}/ftpsync.newversion ]]; then
+                    stamptime=$(< "${LOGDIR}/ftpsync.newversion")
+                    unixtime=$(date +%s)
+                    difference=$(( $unixtime - $stamptime ))
+                fi
+                if [[ ${difference} -ge $interval ]]; then
+                    # Only warn every seventh day
+                    mailf -s "[$(hostname -s)] Update for ftpsync available" -b "Hello admin,
+
+i found that there is a new version of me available.
+Me lonely ftpsync is currently version: ${VERSION}
+New release of myself is available as:  ${LATEST}
+
+Me, myself and I - and the Debian mirroradmins - would be very grateful
+if you could update me. You can find the latest version on your mirror,
+check $(hostname -s):${TO}/project/ftpsync/ftpsync-${LATEST}.tar.gz
+
+You can ensure the validity of that file by using sha512sum or md5sum
+against the available checksum files secured with a signature from the
+Debian FTPMaster signing key.
+
+" ${MAILTO}
+
+                    date +%s > "${LOGDIR}/ftpsync.newversion"
+                fi
+            fi
+        else
+            # Remove a possible stampfile
+            rm -f "${LOGDIR}/ftpsync.newversion"
+        fi
+    fi
+}
+export BASEDIR
+
+ARCHIVE=${1:-}
+CONFIG="ftpsync${ARCHIVE:+-$ARCHIVE}.conf"
+NAME=ftpsync-cron
+PROGRAM=ftpsync-cron
+
+read_config "${CONFIG}"
+
+MAILTO=${MAILTO:-${LOGNAME:?Environment variable LOGNAME unset, please check your system or specify MAILTO}}
+MIRRORNAME=${MIRRORNAME:-$(hostname -f)}
+LOCK=${LOCK:-"${TO}/Archive-Update-in-Progress-${MIRRORNAME}"}
+RSYNC_PATH="${RSYNC_PATH:-debian}"
+
+TRACE_UPSTREAM="project/trace/${RSYNC_HOST}"
+TRACE="project/trace/${MIRRORNAME}"
+
+function run_ftpsync() {
+    exec "${BINDIR:+${BINDIR}/}ftpsync" -T "cron" "sync:archive:${ARCHIVE}" "$@"
+}
+
+function cmp_trace() {
+    local trace_uri="http://${RSYNC_HOST}/${RSYNC_PATH}/${TRACE_UPSTREAM}"
+    local trace_local="${TO}/${TRACE}"
+    local trace ret
+
+    if [[ -e $LOCK ]] && $(kill -0 $(< ${LOCK}) 2>/dev/null); then
+	return 0
+    fi
+
+    trace=$(curl --silent --fail --show-error --location "$trace_uri" 2>&1)
+    ret=$?
+    if [[ $ret != 0 ]]; then
+        error "Failed to retrieve $trace_uri: $trace"
+        exit $ret
+    fi
+
+    if ! serial_remote=$(extract_trace_serial_string "$trace"); then
+        error "Failed to parse archive serial from $trace_uri"
+        exit 1
+    elif ! serial_local=$(extract_trace_serial "$trace_local"); then
+        return 1
+    elif [[ $serial_remote != $serial_local ]]; then
+        return 1
+    fi
+}
+
+if ! cmp_trace; then
+    run_ftpsync
+fi

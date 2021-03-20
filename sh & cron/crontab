@@ -21,14 +21,20 @@
 # 
 # m h  dom mon dow   command
 00 03    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
-00 10    * * *  /root/rsync/script/debian.sh > /root/rsync/log/debian.log
-00 10    * * *  /root/rsync/script/debian-ports.sh > /root/rsync/log/debian-ports.log
-00 10    * * *  /root/rsync/script/debian-security.sh > /root/rsync/log/debian-security.log
+00 04    * * *  /root/ftpsync/debian/bin/ftpsync
+00 04    * * *  /root/ftpsync/debian-ports/bin/ftpsync
+00 04    * * *  /root/ftpsync/debian-security/bin/ftpsync
+00 10    * * *  /root/ftpsync/debian/bin/ftpsync
+00 10    * * *  /root/ftpsync/debian-ports/bin/ftpsync
+00 10    * * *  /root/ftpsync/debian-security/bin/ftpsync
 00 10    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
 00 10    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
 00 15    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
-00 22    * * *  /root/rsync/script/debian.sh > /root/rsync/log/debian.log
-00 22    * * *  /root/rsync/script/debian-ports.sh > /root/rsync/log/debian-ports.log
+00 16    * * *  /root/ftpsync/debian/bin/ftpsync
+00 16    * * *  /root/ftpsync/debian-ports/bin/ftpsync
+00 16    * * *  /root/ftpsync/debian-security/bin/ftpsync
+00 22    * * *  /root/ftpsync/debian/bin/ftpsync
+00 22    * * *  /root/ftpsync/debian-ports/bin/ftpsync
+00 22    * * *  /root/ftpsync/debian-security/bin/ftpsync
 00 22    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
 00 22    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
-00 22    * * *  /root/rsync/script/debian-security.sh > /root/rsync/log/debian-security.log
