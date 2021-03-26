@@ -10,7 +10,7 @@ warn() {
 }
 
 RSYNCSOURCE=rsync://archive.releases.ubuntu.com/releases/
-BASEDIR=/HDD/ubuntu-releases
+BASEDIR=/SSD/ubuntu-releases
 
 if [ ! -d ${BASEDIR} ]; then
   warn "${BASEDIR} does not exist yet, trying to create it..."
