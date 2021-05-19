@@ -1,0 +1,10 @@
+{
+  "name": "misaka-status",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "kwabang",
+  "dependencies": {
+    "ls": "^0.2.1",
+    "node-cron": "^3.0.0"
+  }
+}

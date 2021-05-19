@@ -154,32 +154,32 @@
       })
   </script>
   <script type="text/javascript">
-    function check(name) {
+    function check(refresh) {
       var xhr = new XMLHttpRequest();
-      var url = './' + name + '/Archive-Update-in-Progress-mirror.misakamikoto.network'
-
-      xhr.open('HEAD', url);
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-          switch (xhr.status) {
-            default:
-              document.getElementById(name + '-status').classList.add('positive')
-              document.getElementById(name + '-status').innerHTML = 'Online'
-              break
-            case 200:
-              document.getElementById(name + '-status').classList.add('warning')
-              document.getElementById(name + '-status').innerHTML = 'Updating'
-              break
+      xhr.open('GET', './status.json', true);
+      xhr.responseType = 'json';
+      xhr.onload = function () {
+        if (xhr.readyState === xhr.DONE) {
+          if (xhr.status === 200) {
+            xhr.response.forEach((element) => {
+              if (refresh) document.getElementById(element.name + '-status').classList.remove(document.getElementById(element.name + '-status').classList)
+              if (element.status) {
+                document.getElementById(element.name + '-status').classList.add('positive')
+                document.getElementById(element.name + '-status').innerHTML = 'Online'
+              } else {
+                document.getElementById(element.name + '-status').classList.add('warning')
+                document.getElementById(element.name + '-status').innerHTML = 'Updating'
+              }
+            })
           }
         }
       }
-      xhr.send();
+      xhr.send()
     }
-    var list = ['ubuntu', 'ubuntu-ports', 'ubuntu-releases', 'debian', 'debian-ports','debian-security']
-    list.forEach(name => {
-      check(name)
-    })
+    check(false)
+    window.setInterval(check, 60000, true)
   </script>
+
 </body>
 
 </html>
