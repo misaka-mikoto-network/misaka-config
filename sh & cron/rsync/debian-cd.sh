@@ -9,8 +9,8 @@ warn() {
   echo "$1"
 }
 
-RSYNCSOURCE=rsync://archive.releases.ubuntu.com/releases/
-BASEDIR=/SSD/ubuntu-releases
+RSYNCSOURCE=rsync://cdimage.debian.org/debian-cd/
+BASEDIR=/HDD_6TB/debian-cd
 
 if [ ! -d ${BASEDIR} ]; then
   warn "${BASEDIR} does not exist yet, trying to create it..."
