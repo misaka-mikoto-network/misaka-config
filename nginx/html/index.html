@@ -64,9 +64,8 @@
               </div>
             </h1>
 
-            <!-- NOTE: 타임존 표시 -->
+            <!-- NOTE: 공지 -->
             <ul>
-              <li>All times specified in this page is KST.</li>
               <li>Server is located in YeongCheon, South Korea</li>
             </ul>
 
@@ -76,46 +75,64 @@
                 <tr>
                   <th>Name</th>
                   <th>Protocol</th>
-                  <th>Synchronization time</th>
+                  <th>Synchronization Frequency</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><a href="./ubuntu">Ubuntu</a></td>
+                  <td><a href="./almalinux">Almalinux</a></td>
                   <td>HTTP, HTTPS</td>
-                  <td>07:00, 19:00</td>
-                  <td id="ubuntu-status"></td>
-                </tr>
-                <tr>
-                  <td><a href="./ubuntu-ports">Ubuntu-Ports</a></td>
-                  <td>HTTP, HTTPS</td>
-                  <td>07:00, 19:00</td>
-                  <td id="ubuntu-ports-status"></td>
-                </tr>
-                <tr>
-                  <td><a href="./ubuntu-releases">Ubuntu-Releases</a></td>
-                  <td>HTTP, HTTPS</td>
-                  <td>00:00, 12:00</td>
-                  <td id="ubuntu-releases-status"></td>
+                  <td>6 hours</td>
+                  <td id="almalinux-status"></td>
                 </tr>
                 <tr>
                   <td><a href="./debian">Debian</a></td>
                   <td>HTTP, HTTPS</td>
-                  <td>01:00, 07:00, 13:00, 19:00</td>
+                  <td>6 hours</td>
                   <td id="debian-status"></td>
                 </tr>
                 <tr>
                   <td><a href="./debian-ports">Debian-Ports</a></td>
                   <td>HTTP, HTTPS</td>
-                  <td>01:00, 07:00, 13:00, 19:00</td>
+                  <td>6 hours</td>
                   <td id="debian-ports-status"></td>
                 </tr>
                 <tr>
                   <td><a href="./debian-security">Debian-Security</a></td>
                   <td>HTTP, HTTPS</td>
-                  <td>01:00, 07:00, 13:00, 19:00</td>
+                  <td>6 hours</td>
                   <td id="debian-security-status"></td>
+                </tr>
+                <tr>
+                  <td><a href="./ubuntu">Ubuntu</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>12 hours</td>
+                  <td id="ubuntu-status"></td>
+                </tr>
+                <tr>
+                  <td><a href="./ubuntu-ports">Ubuntu-Ports</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>12 hours</td>
+                  <td id="ubuntu-ports-status"></td>
+                </tr>
+                <tr>
+                  <td><a href="./ubuntu-releases">Ubuntu-Releases</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>24 hours</td>
+                  <td id="ubuntu-releases-status"></td>
+                </tr>
+                <tr>
+                  <td><a href="./debian-cd">Debian-CD</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>24 hours</td>
+                  <td id="debian-cd-status"></td>
+                </tr>
+                <tr>
+                  <td><a href="./rocky">Rocky</a></td>
+                  <td>HTTP, HTTPS</td>
+                  <td>24 hours</td>
+                  <td id="rocky-status"></td>
                 </tr>
               </tbody>
             </table>
@@ -161,8 +178,9 @@
       xhr.onload = function () {
         if (xhr.readyState === xhr.DONE) {
           if (xhr.status === 200) {
-            xhr.response.forEach((element) => {
-              if (refresh) document.getElementById(element.name + '-status').classList.remove(document.getElementById(element.name + '-status').classList)
+            xhr.response.status.forEach((element) => {
+              if (refresh) document.getElementById(element.name + '-status').classList.remove(document
+                .getElementById(element.name + '-status').classList)
               if (element.status) {
                 document.getElementById(element.name + '-status').classList.add('positive')
                 document.getElementById(element.name + '-status').innerHTML = 'Online'

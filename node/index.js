@@ -15,13 +15,14 @@ cron.schedule('*/1 * * * *', () => {
 
   fs.readFile(`${config.statusJsonLocation}/status.json`, 'utf8', (err, data) => {
     let statusJson = JSON.parse(data)
-    for (let i = 0, cnt = statusJson.length; i < cnt; i++) {
-      if (syncing.includes(statusJson[i].name)) {
-        statusJson[i].status = 0
+    for (let i = 0, cnt = statusJson.status.length; i < cnt; i++) {
+      if (syncing.includes(statusJson.status[i].name)) {
+        statusJson.status[i].status = 0
       } else {
-        statusJson[i].status = 1
+        statusJson.status[i].status = 1
       }
     }
+    statusJson.datetime = Date().toLocaleString()
     fs.writeFileSync(`${config.statusJsonLocation}/status.json`, JSON.stringify(statusJson))
   })
 })

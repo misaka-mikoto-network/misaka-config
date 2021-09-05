@@ -1,5 +1,5 @@
 {
-  "mirroringDir": "/HDD/all-mirror",
-  "mirroringPackages": ["ubuntu", "ubuntu-ports", "ubuntu-releases", "debian", "debian-ports", "debian-security"],
+  "mirroringDir": "/all-mirror",
+  "mirroringPackages": ["ubuntu", "ubuntu-ports", "ubuntu-releases", "debian", "debian-ports", "debian-security","debian-cd","rocky","almalinux"],
   "statusJsonLocation":"/etc/nginx/html"
 }

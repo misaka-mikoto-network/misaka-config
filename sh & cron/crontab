@@ -20,21 +20,27 @@
 # For more information see the manual pages of crontab(5) and cron(8)
 # 
 # m h  dom mon dow   command
-00 03    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
 00 04    * * *  /root/ftpsync/debian/bin/ftpsync
 00 04    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 04    * * *  /root/ftpsync/debian-security/bin/ftpsync
+00 04    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
 00 10    * * *  /root/ftpsync/debian/bin/ftpsync
 00 10    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 10    * * *  /root/ftpsync/debian-security/bin/ftpsync
-00 10    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
-00 10    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
+00 10    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
+00 10    * * *  /root/ftpsync/ubuntu/bin/ftpsync
+00 10    * * *  /root/ftpsync/ubuntu-ports/bin/ftpsync
 00 15    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
+00 15    * * *  /root/rsync/script/debian-cd.sh > /root/rsync/log/debian-cd.log
+00 15    * * *  /root/rsync/script/rocky.sh > /root/rsync/log/rocky.log
 00 16    * * *  /root/ftpsync/debian/bin/ftpsync
 00 16    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 16    * * *  /root/ftpsync/debian-security/bin/ftpsync
+00 16    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
 00 22    * * *  /root/ftpsync/debian/bin/ftpsync
 00 22    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 22    * * *  /root/ftpsync/debian-security/bin/ftpsync
-00 22    * * *  /root/rsync/script/ubuntu.sh > /root/rsync/log/ubuntu.log
-00 22    * * *  /root/rsync/script/ubuntu-ports.sh > /root/rsync/log/ubuntu-ports.log
+00 22    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
+00 22    * * *  /root/ftpsync/ubuntu/bin/ftpsync
+00 22    * * *  /root/ftpsync/ubuntu-ports/bin/ftpsync
+0 0 * */1 * /usr/bin/certbot renew --dry-run
