@@ -28,6 +28,7 @@
 00 10    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 10    * * *  /root/ftpsync/debian-security/bin/ftpsync
 00 10    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
+00 10    * * *  /root/rsync/script/archlinux.sh > /root/rsync/log/archlinux.log
 00 10    * * *  /root/ftpsync/ubuntu/bin/ftpsync
 00 10    * * *  /root/ftpsync/ubuntu-ports/bin/ftpsync
 00 15    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
@@ -41,6 +42,8 @@
 00 22    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 22    * * *  /root/ftpsync/debian-security/bin/ftpsync
 00 22    * * *  /root/rsync/script/almalinux.sh > /root/rsync/log/almalinux.log
+00 22    * * *  /root/rsync/script/archlinux.sh > /root/rsync/log/archlinux.log
 00 22    * * *  /root/ftpsync/ubuntu/bin/ftpsync
 00 22    * * *  /root/ftpsync/ubuntu-ports/bin/ftpsync
 0 0 * */1 * /usr/bin/certbot renew --dry-run
+5 0 * */1 * /usr/sbin/nginx -s reload
