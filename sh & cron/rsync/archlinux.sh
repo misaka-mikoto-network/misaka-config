@@ -9,8 +9,8 @@ warn() {
   echo "$1"
 }
 
-RSYNCSOURCE=rsync://mirrors.kernel.org/mirrors/oracle/
-BASEDIR=/HDD_6TB/oracle-linux
+RSYNCSOURCE=rsync://arch.mirror.constant.com/archlinux/
+BASEDIR=/HDD_6TB/archlinux
 
 if [ ! -d ${BASEDIR} ]; then
   warn "${BASEDIR} does not exist yet, trying to create it..."
@@ -19,5 +19,5 @@ fi
 
 touch ${BASEDIR}/Archive-Update-in-Progress-mirror.misakamikoto.network
 
-rsync -rlptv --delete-delay \
+rsync -rlptH --safe-links --delete-delay --delay-updates -f 'R .~tmp~' \
   ${RSYNCSOURCE} ${BASEDIR} || warn "Failed to rsync from ${RSYNCSOURCE}."
