@@ -34,6 +34,7 @@
 00 15    * * *  /root/rsync/script/ubuntu-releases.sh > /root/rsync/log/ubuntu-releases.log
 00 15    * * *  /root/rsync/script/debian-cd.sh > /root/rsync/log/debian-cd.log
 00 15    * * *  /root/rsync/script/rocky.sh > /root/rsync/log/rocky.log
+00 15    * * *  /root/rsync/script/fedora-epel.sh > /root/rsync/log/fedora-epel.log
 00 16    * * *  /root/ftpsync/debian/bin/ftpsync
 00 16    * * *  /root/ftpsync/debian-ports/bin/ftpsync
 00 16    * * *  /root/ftpsync/debian-security/bin/ftpsync
@@ -47,3 +48,5 @@
 00 22    * * *  /root/ftpsync/ubuntu-ports/bin/ftpsync
 0 0 * */1 * /usr/bin/certbot renew --dry-run
 5 0 * */1 * /usr/sbin/nginx -s reload
+@reboot sleep 10 && ip -6 addr add 2a06:a005:45a::5:2/64 dev tun0
+@reboot sleep 12 && ip -6 route add default via 2a06:a005:45a::1 dev tun0
